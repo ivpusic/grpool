@@ -1,14 +1,21 @@
 package grpool
 
 import (
+	"runtime"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	println("using MAXPROC")
+	numCPUs := runtime.NumCPU()
+	runtime.GOMAXPROCS(numCPUs)
+}
+
 func TestNewWorker(t *testing.T) {
-	pool := make(chan worker)
+	pool := make(chan *worker)
 	worker := newWorker(pool)
 	worker.start()
 	assert.NotNil(t, worker)
@@ -31,53 +38,30 @@ func TestNewWorker(t *testing.T) {
 	assert.Equal(t, true, called)
 }
 
-func TestNewDispatcher(t *testing.T) {
-	jobQueue := make(chan Job, 20)
-	workerPool := make(chan worker, 10)
-
-	d := newDispatcher(workerPool, jobQueue)
-	assert.NotNil(t, d)
-
-	counter := 0
-	iterations := 10000
-
-	for i := 0; i < iterations; i++ {
-		job := Job{
-			Fn: func(arg interface{}) {
-				val := arg.(int)
-				counter += val
-				assert.Equal(t, 1, val)
-			},
-			Arg: 1,
-		}
-
-		d.jobQueue <- job
-	}
-
-	time.Sleep(5 * time.Second)
-	d.stop()
-	assert.Equal(t, iterations, counter)
-}
-
 func TestNewPool(t *testing.T) {
-	pool := NewPool(10, 100)
+	pool := NewPool(1000, 10000)
 
-	counter := 0
 	iterations := 1000000
+	pool.WaitCount(iterations)
+	var counter uint64 = 0
 
 	for i := 0; i < iterations; i++ {
 		job := Job{
 			Fn: func(arg interface{}) {
-				val := arg.(int)
-				counter += val
+				defer pool.JobDone()
+
+				val := arg.(uint64)
+				atomic.AddUint64(&counter, val)
 				assert.Equal(t, 1, val)
 			},
-			Arg: 1,
+			Arg: uint64(1),
 		}
 
 		pool.JobQueue <- job
 	}
 
-	pool.Wait()
-	assert.Equal(t, iterations, counter)
+	pool.WaitAll()
+
+	counterFinal := atomic.LoadUint64(&counter)
+	assert.Equal(t, iterations, counterFinal)
 }

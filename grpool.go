@@ -1,12 +1,14 @@
 package grpool
 
+import "sync"
+
 // Gorouting instance which can accept client jobs
 type worker struct {
-	workerPool chan worker
+	workerPool chan *worker
 	jobChannel chan Job
 }
 
-func (w worker) start() {
+func (w *worker) start() {
 	go func() {
 		for {
 			// worker free, add it to pool
@@ -14,18 +16,14 @@ func (w worker) start() {
 
 			select {
 			case job := <-w.jobChannel:
-				if job.stop {
-					return
-				}
-
 				job.Fn(job.Arg)
 			}
 		}
 	}()
 }
 
-func newWorker(pool chan worker) worker {
-	return worker{
+func newWorker(pool chan *worker) *worker {
+	return &worker{
 		workerPool: pool,
 		jobChannel: make(chan Job),
 	}
@@ -33,11 +31,11 @@ func newWorker(pool chan worker) worker {
 
 // Accepts jobs from clients, and waits for first free worker to deliver job
 type dispatcher struct {
-	workerPool chan worker
+	workerPool chan *worker
 	jobQueue   chan Job
 }
 
-func (d dispatcher) dispatch() {
+func (d *dispatcher) dispatch() {
 	for {
 		select {
 		case job := <-d.jobQueue:
@@ -47,15 +45,11 @@ func (d dispatcher) dispatch() {
 	}
 }
 
-func (d dispatcher) stop() {
-	for i := 0; i < cap(d.workerPool); i++ {
-		worker := <-d.workerPool
-		worker.jobChannel <- Job{stop: true}
+func newDispatcher(workerPool chan *worker, jobQueue chan Job) dispatcher {
+	d := dispatcher{
+		workerPool: workerPool,
+		jobQueue:   jobQueue,
 	}
-}
-
-func newDispatcher(workerPool chan worker, jobQueue chan Job) dispatcher {
-	d := dispatcher{workerPool: workerPool, jobQueue: jobQueue}
 
 	for i := 0; i < cap(d.workerPool); i++ {
 		worker := newWorker(d.workerPool)
@@ -70,14 +64,14 @@ func newDispatcher(workerPool chan worker, jobQueue chan Job) dispatcher {
 // User has to provide function and optional arguments.
 // Job will be executed in first free goroutine
 type Job struct {
-	stop bool
-	Fn   func(interface{})
-	Arg  interface{}
+	Fn  func(interface{})
+	Arg interface{}
 }
 
 type Pool struct {
 	JobQueue   chan Job
 	dispatcher dispatcher
+	wg         sync.WaitGroup
 }
 
 // Will make pool of gorouting workers.
@@ -87,15 +81,31 @@ type Pool struct {
 // Returned object contains JobQueue reference, which you can use to send job to pool.
 func NewPool(numWorkers int, jobQueueLen int) *Pool {
 	jobQueue := make(chan Job, jobQueueLen)
-	workerPool := make(chan worker, numWorkers)
+	workerPool := make(chan *worker, numWorkers)
 
-	return &Pool{
+	pool := &Pool{
 		JobQueue:   jobQueue,
 		dispatcher: newDispatcher(workerPool, jobQueue),
 	}
+
+	return pool
 }
 
-// Will send special kind of job to all workers to exit.
-func (p *Pool) Wait() {
-	p.dispatcher.stop()
+// In case you are using WaitAll fn, you should call this method
+// every time your job is done.
+//
+// If you are not using WaitAll then we assume you have your own way of synchronizing.
+func (p *Pool) JobDone() {
+	p.wg.Done()
+}
+
+// How many jobs we should wait when calling WaitAll.
+// It is using WaitGroup Add/Done/Wait
+func (p *Pool) WaitCount(count int) {
+	p.wg.Add(count)
+}
+
+// Will wait for all jobs to finish.
+func (p *Pool) WaitAll() {
+	p.wg.Wait()
 }
