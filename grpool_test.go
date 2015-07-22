@@ -52,7 +52,7 @@ func TestNewPool(t *testing.T) {
 
 				val := arg.(uint64)
 				atomic.AddUint64(&counter, val)
-				assert.Equal(t, 1, val)
+				assert.Equal(t, uint64(1), val)
 			},
 			Arg: uint64(1),
 		}
@@ -63,5 +63,5 @@ func TestNewPool(t *testing.T) {
 	pool.WaitAll()
 
 	counterFinal := atomic.LoadUint64(&counter)
-	assert.Equal(t, iterations, counterFinal)
+	assert.Equal(t, uint64(iterations), counterFinal)
 }
