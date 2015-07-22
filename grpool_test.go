@@ -2,6 +2,7 @@ package grpool
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -53,6 +54,7 @@ func TestNewDispatcher(t *testing.T) {
 		d.jobQueue <- job
 	}
 
+	time.Sleep(5 * time.Second)
 	d.stop()
 	assert.Equal(t, iterations, counter)
 }
