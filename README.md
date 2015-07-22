@@ -38,8 +38,7 @@ func main() {
 	job := grpool.Job{
 		// define function which will be called on worker
 		Fn: func(arg interface{}) {
-			msg := arg.(string)
-			fmt.Printf("hello %s\n", msg)
+			fmt.Printf("hello %s\n", arg)
 		},
 		// provide arguments
 		Arg: "world",
@@ -81,9 +80,8 @@ func main() {
 		Fn: func(arg interface{}) {
 			// say that job is done, so we can know how many jobs are finished
 			defer pool.JobDone()
-
-			msg := arg.(string)
-			fmt.Printf("hello %s\n", msg)
+			
+			fmt.Printf("hello %s\n", arg)
 		},
 		// provide arguments
 		Arg: "world",
