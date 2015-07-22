@@ -39,19 +39,13 @@ func TestNewDispatcher(t *testing.T) {
 
 	counter := 0
 	iterations := 10000
-	done := make(chan bool)
 
-	for i := 0; i <= iterations; i++ {
+	for i := 0; i < iterations; i++ {
 		job := Job{
 			Fn: func(arg interface{}) {
 				val := arg.(int)
 				counter += val
 				assert.Equal(t, 1, val)
-
-				println(counter, iterations)
-				if counter == iterations {
-					done <- true
-				}
 			},
 			Arg: 1,
 		}
@@ -59,11 +53,7 @@ func TestNewDispatcher(t *testing.T) {
 		d.jobQueue <- job
 	}
 
-	for i := 0; i < 10; i++ {
-		d.jobQueue <- Job{stop: true}
-	}
-
-	<-done
+	d.stop()
 	assert.Equal(t, iterations, counter)
 }
 
