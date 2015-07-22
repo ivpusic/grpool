@@ -7,7 +7,7 @@ When worker is done with processing job, will be returned back to worker pool.
 Number of workers and Job queue size is configurable.
 
 ## Example
-```
+```Go
 package main
 
 import (
