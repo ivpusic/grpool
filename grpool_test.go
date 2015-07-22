@@ -38,7 +38,7 @@ func TestNewDispatcher(t *testing.T) {
 	assert.NotNil(t, d)
 
 	counter := 0
-	iterations := 1000000
+	iterations := 10000
 	done := make(chan bool)
 
 	for i := 0; i <= iterations; i++ {
@@ -48,6 +48,7 @@ func TestNewDispatcher(t *testing.T) {
 				counter += val
 				assert.Equal(t, 1, val)
 
+				println(counter, iterations)
 				if counter == iterations {
 					done <- true
 				}
