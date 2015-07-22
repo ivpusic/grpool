@@ -58,6 +58,10 @@ func TestNewDispatcher(t *testing.T) {
 		d.jobQueue <- job
 	}
 
+	for i := 0; i < 10; i++ {
+		d.jobQueue <- Job{stop: true}
+	}
+
 	<-done
 	assert.Equal(t, iterations, counter)
 }
