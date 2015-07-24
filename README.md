@@ -145,6 +145,3 @@ func main() {
 
 ## License
 *MIT*
-
-## License
-*MIT*
