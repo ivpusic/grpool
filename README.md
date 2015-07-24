@@ -97,5 +97,51 @@ func main() {
 }
 ```
 
+## Example with coustom panic recover
+```Go
+package main
+
+import (
+	"fmt"
+	"runtime"
+
+	"github.com/ivpusic/grpool"
+)
+
+func main() {
+	numCPUs := runtime.NumCPU()
+	runtime.GOMAXPROCS(numCPUs)
+
+	// number of workers, and size of job queue
+	pool := grpool.NewPool(10, 50)
+
+	// how many jobs we should wait
+	pool.WaitCount(10)
+
+	job := grpool.Job{
+		// define function which will be called on worker
+		Fn: func(arg interface{}) {
+			// say that job is done, so we can know how many jobs are finished
+			defer pool.JobDone()
+
+			fmt.Printf("hello %s\n", arg)
+		},
+		// provide arguments
+		Arg: "world",
+		RecoverFn: func() {
+			fmt.Println("Custom panic catch.")
+		},
+	}
+
+	// submit one or more jobs to pool
+	for i := 0; i < 10; i++ {
+		pool.JobQueue <- job
+	}
+
+	// wait until we call JobDone for all jobs
+	pool.WaitAll()
+}
+```
+
 ## License
 *MIT*

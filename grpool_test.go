@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -64,4 +65,47 @@ func TestNewPool(t *testing.T) {
 
 	counterFinal := atomic.LoadUint64(&counter)
 	assert.Equal(t, uint64(iterations), counterFinal)
+}
+
+func TestCustomRecover(t *testing.T) {
+	pool := NewPool(1, 1)
+
+	pool.WaitCount(1)
+	var count int = 1
+
+	job := Job{
+		Fn: func(arg interface{}) {
+			defer pool.JobDone()
+			panic("Capture a custom panic!")
+		},
+		Arg: uint64(1),
+		RecoverFn: func(r interface{}) {
+			count++
+		},
+	}
+
+	pool.JobQueue <- job
+
+	pool.WaitAll()
+
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, 2, count)
+}
+
+func TestRecover(t *testing.T) {
+	pool := NewPool(1, 1)
+
+	pool.WaitCount(1)
+
+	job := Job{
+		Fn: func(arg interface{}) {
+			defer pool.JobDone()
+			panic("Capture a default panic!")
+		},
+		Arg: uint64(1),
+	}
+
+	pool.JobQueue <- job
+
+	pool.WaitAll()
 }
