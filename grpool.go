@@ -17,10 +17,10 @@ func (w *worker) start() {
 
 		// This defer function will try to catches a crash
 		defer func() {
-			if err := recover(); err != nil {
-				log.Println(err)
+			if r := recover(); r != nil {
+				log.Println(r)
 				if job.RecoverFn != nil {
-					job.RecoverFn()
+					job.RecoverFn(r)
 				}
 			}
 		}()
@@ -82,7 +82,7 @@ func newDispatcher(workerPool chan *worker, jobQueue chan Job) dispatcher {
 type Job struct {
 	Fn        func(interface{})
 	Arg       interface{}
-	RecoverFn func()
+	RecoverFn func(interface{})
 }
 
 type Pool struct {

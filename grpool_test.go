@@ -79,7 +79,7 @@ func TestCustomRecover(t *testing.T) {
 			panic("Capture a custom panic!")
 		},
 		Arg: uint64(1),
-		RecoverFn: func() {
+		RecoverFn: func(r interface{}) {
 			count++
 		},
 	}
