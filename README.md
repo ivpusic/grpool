@@ -97,7 +97,7 @@ func main() {
 }
 ```
 
-## Example with coustom panic recover
+## Example with custom panic recover
 ```Go
 package main
 
