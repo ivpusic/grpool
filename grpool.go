@@ -1,6 +1,9 @@
 package grpool
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 // Gorouting instance which can accept client jobs
 type worker struct {
@@ -10,12 +13,24 @@ type worker struct {
 
 func (w *worker) start() {
 	go func() {
+		var job Job
+
+		// This defer function will try to catches a crash
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println(r)
+				if job.RecoverFn != nil {
+					job.RecoverFn(r)
+				}
+			}
+		}()
+
 		for {
 			// worker free, add it to pool
 			w.workerPool <- w
 
 			select {
-			case job := <-w.jobChannel:
+			case job = <-w.jobChannel:
 				job.Fn(job.Arg)
 			}
 		}
@@ -63,9 +78,11 @@ func newDispatcher(workerPool chan *worker, jobQueue chan Job) dispatcher {
 // Represents user request.
 // User has to provide function and optional arguments.
 // Job will be executed in first free goroutine
+// You can supply custom recover function for a panic.
 type Job struct {
-	Fn  func(interface{})
-	Arg interface{}
+	Fn        func(interface{})
+	Arg       interface{}
+	RecoverFn func(interface{})
 }
 
 type Pool struct {
