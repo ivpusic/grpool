@@ -34,6 +34,9 @@ func main() {
 
 	// number of workers, and size of job queue
 	pool := grpool.NewPool(10, 50)
+	
+	// release resources used by pool
+	defer pool.Release()
 
 	job := grpool.Job{
 		// define function which will be called on worker
@@ -71,6 +74,7 @@ func main() {
 
 	// number of workers, and size of job queue
 	pool := grpool.NewPool(10, 50)
+	defer pool.Release()
 
 	// how many jobs we should wait
 	pool.WaitCount(10)
@@ -114,6 +118,7 @@ func main() {
 
 	// number of workers, and size of job queue
 	pool := grpool.NewPool(10, 50)
+	defer pool.Release()
 
 	// how many jobs we should wait
 	pool.WaitCount(10)
