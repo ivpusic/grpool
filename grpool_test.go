@@ -75,7 +75,6 @@ func TestRelease(t *testing.T) {
 		pool.Release()
 
 		// give some time for all goroutines to quit
-		time.Sleep(5000)
 		assert.Equal(t, grNum, runtime.NumGoroutine(), "All goroutines should be released after Release() call")
 	}()
 

@@ -20,6 +20,10 @@ func (w *worker) start() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Println(r)
+
+				// restart worker
+				w.start()
+
 				if job.RecoverFn != nil {
 					job.RecoverFn(r)
 				}
@@ -35,6 +39,7 @@ func (w *worker) start() {
 				job.Fn(job.Arg)
 			case stop := <-w.stop:
 				if stop {
+					w.stop <- true
 					return
 				}
 			}
@@ -67,9 +72,12 @@ func (d *dispatcher) dispatch() {
 			if stop {
 				for i := 0; i < cap(d.workerPool); i++ {
 					worker := <-d.workerPool
+
 					worker.stop <- true
+					<-worker.stop
 				}
 
+				d.stop <- true
 				return
 			}
 		}
@@ -147,4 +155,5 @@ func (p *Pool) WaitAll() {
 // Will release resources used by pool
 func (p *Pool) Release() {
 	p.dispatcher.stop <- true
+	<-p.dispatcher.stop
 }
