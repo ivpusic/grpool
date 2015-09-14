@@ -41,6 +41,7 @@ func TestNewWorker(t *testing.T) {
 
 func TestNewPool(t *testing.T) {
 	pool := NewPool(1000, 10000)
+	defer pool.Release()
 
 	iterations := 1000000
 	pool.WaitCount(iterations)
@@ -67,8 +68,35 @@ func TestNewPool(t *testing.T) {
 	assert.Equal(t, uint64(iterations), counterFinal)
 }
 
+func TestRelease(t *testing.T) {
+	grNum := runtime.NumGoroutine()
+	pool := NewPool(5, 10)
+	defer func() {
+		pool.Release()
+
+		// give some time for all goroutines to quit
+		time.Sleep(5000)
+		assert.Equal(t, grNum, runtime.NumGoroutine(), "All goroutines should be released after Release() call")
+	}()
+
+	pool.WaitCount(1000)
+
+	for i := 0; i < 1000; i++ {
+		job := Job{
+			Fn: func(arg interface{}) {
+				defer pool.JobDone()
+			},
+		}
+
+		pool.JobQueue <- job
+	}
+
+	pool.WaitAll()
+}
+
 func TestCustomRecover(t *testing.T) {
 	pool := NewPool(1, 1)
+	defer pool.Release()
 
 	pool.WaitCount(1)
 	var count int = 1
@@ -94,6 +122,7 @@ func TestCustomRecover(t *testing.T) {
 
 func TestRecover(t *testing.T) {
 	pool := NewPool(1, 1)
+	defer pool.Release()
 
 	pool.WaitCount(1)
 
@@ -108,27 +137,4 @@ func TestRecover(t *testing.T) {
 	pool.JobQueue <- job
 
 	pool.WaitAll()
-}
-
-func TestRelease(t *testing.T) {
-	grNum := runtime.NumGoroutine()
-	pool := NewPool(5, 10)
-	pool.WaitCount(1000)
-
-	for i := 0; i < 1000; i++ {
-		job := Job{
-			Fn: func(arg interface{}) {
-				defer pool.JobDone()
-			},
-		}
-
-		pool.JobQueue <- job
-	}
-
-	pool.WaitAll()
-	pool.Release()
-
-	// give some time for all goroutines to quit
-	time.Sleep(5000)
-	assert.Equal(t, grNum, runtime.NumGoroutine(), "All goroutines should be released after Release() call")
 }
