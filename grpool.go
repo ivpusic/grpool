@@ -9,6 +9,7 @@ import (
 type worker struct {
 	workerPool chan *worker
 	jobChannel chan Job
+	stop       chan bool
 }
 
 func (w *worker) start() {
@@ -32,6 +33,10 @@ func (w *worker) start() {
 			select {
 			case job = <-w.jobChannel:
 				job.Fn(job.Arg)
+			case stop := <-w.stop:
+				if stop {
+					return
+				}
 			}
 		}
 	}()
@@ -41,6 +46,7 @@ func newWorker(pool chan *worker) *worker {
 	return &worker{
 		workerPool: pool,
 		jobChannel: make(chan Job),
+		stop:       make(chan bool),
 	}
 }
 
@@ -48,6 +54,7 @@ func newWorker(pool chan *worker) *worker {
 type dispatcher struct {
 	workerPool chan *worker
 	jobQueue   chan Job
+	stop       chan bool
 }
 
 func (d *dispatcher) dispatch() {
@@ -56,14 +63,24 @@ func (d *dispatcher) dispatch() {
 		case job := <-d.jobQueue:
 			worker := <-d.workerPool
 			worker.jobChannel <- job
+		case stop := <-d.stop:
+			if stop {
+				for i := 0; i < cap(d.workerPool); i++ {
+					worker := <-d.workerPool
+					worker.stop <- true
+				}
+
+				return
+			}
 		}
 	}
 }
 
-func newDispatcher(workerPool chan *worker, jobQueue chan Job) dispatcher {
-	d := dispatcher{
+func newDispatcher(workerPool chan *worker, jobQueue chan Job) *dispatcher {
+	d := &dispatcher{
 		workerPool: workerPool,
 		jobQueue:   jobQueue,
+		stop:       make(chan bool),
 	}
 
 	for i := 0; i < cap(d.workerPool); i++ {
@@ -87,7 +104,7 @@ type Job struct {
 
 type Pool struct {
 	JobQueue   chan Job
-	dispatcher dispatcher
+	dispatcher *dispatcher
 	wg         sync.WaitGroup
 }
 
@@ -125,4 +142,9 @@ func (p *Pool) WaitCount(count int) {
 // Will wait for all jobs to finish.
 func (p *Pool) WaitAll() {
 	p.wg.Wait()
+}
+
+// Will release resources used by pool
+func (p *Pool) Release() {
+	p.dispatcher.stop <- true
 }

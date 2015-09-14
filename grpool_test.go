@@ -109,3 +109,26 @@ func TestRecover(t *testing.T) {
 
 	pool.WaitAll()
 }
+
+func TestRelease(t *testing.T) {
+	grNum := runtime.NumGoroutine()
+	pool := NewPool(5, 10)
+	pool.WaitCount(1000)
+
+	for i := 0; i < 1000; i++ {
+		job := Job{
+			Fn: func(arg interface{}) {
+				defer pool.JobDone()
+			},
+		}
+
+		pool.JobQueue <- job
+	}
+
+	pool.WaitAll()
+	pool.Release()
+
+	// give some time for all goroutines to quit
+	time.Sleep(5000)
+	assert.Equal(t, grNum, runtime.NumGoroutine(), "All goroutines should be released after Release() call")
+}
