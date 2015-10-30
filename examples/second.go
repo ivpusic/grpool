@@ -7,7 +7,7 @@ import (
 	"github.com/ivpusic/grpool"
 )
 
-func main() {
+func second() {
 	numCPUs := runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPUs)
 
