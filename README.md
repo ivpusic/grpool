@@ -21,39 +21,34 @@ go get github.com/ivpusic/grpool
 package main
 
 import (
-	"fmt"
-	"runtime"
-	"time"
+  "fmt"
+  "runtime"
+  "time"
 
-	"github.com/ivpusic/grpool"
+  "github.com/ivpusic/grpool"
 )
 
 func main() {
-	numCPUs := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPUs)
+  numCPUs := runtime.NumCPU()
+  runtime.GOMAXPROCS(numCPUs)
 
-	// number of workers, and size of job queue
-	pool := grpool.NewPool(10, 50)
-	
-	// release resources used by pool
-	defer pool.Release()
+  // number of workers, and size of job queue
+  pool := grpool.NewPool(100, 50)
 
-	job := grpool.Job{
-		// define function which will be called on worker
-		Fn: func(arg interface{}) {
-			fmt.Printf("hello %s\n", arg)
-		},
-		// provide arguments
-		Arg: "world",
-	}
+  // release resources used by pool
+  defer pool.Release()
 
-	// submit one or more jobs to pool
-	for i := 0; i < 10; i++ {
-		pool.JobQueue <- job
-	}
+  // submit one or more jobs to pool
+  for i := 0; i < 10; i++ {
+    count := i
 
-	// dummy wait until jobs are finished
-	time.Sleep(1 * time.Second)
+    pool.JobQueue <- func() {
+      fmt.Printf("I am worker! Number %d\n", count)
+    }
+  }
+
+  // dummy wait until jobs are finished
+  time.Sleep(1 * time.Second)
 }
 ```
 
@@ -62,89 +57,37 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"runtime"
+  "fmt"
+  "runtime"
 
-	"github.com/ivpusic/grpool"
+  "github.com/ivpusic/grpool"
 )
 
 func main() {
-	numCPUs := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPUs)
+  numCPUs := runtime.NumCPU()
+  runtime.GOMAXPROCS(numCPUs)
 
-	// number of workers, and size of job queue
-	pool := grpool.NewPool(10, 50)
-	defer pool.Release()
+  // number of workers, and size of job queue
+  pool := grpool.NewPool(100, 50)
+  defer pool.Release()
 
-	// how many jobs we should wait
-	pool.WaitCount(10)
+  // how many jobs we should wait
+  pool.WaitCount(10)
 
-	job := grpool.Job{
-		// define function which will be called on worker
-		Fn: func(arg interface{}) {
-			// say that job is done, so we can know how many jobs are finished
-			defer pool.JobDone()
-			
-			fmt.Printf("hello %s\n", arg)
-		},
-		// provide arguments
-		Arg: "world",
-	}
+  // submit one or more jobs to pool
+  for i := 0; i < 10; i++ {
+    count := i
 
-	// submit one or more jobs to pool
-	for i := 0; i < 10; i++ {
-		pool.JobQueue <- job
-	}
+    pool.JobQueue <- func() {
+      // say that job is done, so we can know how many jobs are finished
+      defer pool.JobDone()
 
-	// wait until we call JobDone for all jobs
-	pool.WaitAll()
-}
-```
+      fmt.Printf("hello %d\n", count)
+    }
+  }
 
-## Example with custom panic recover
-```Go
-package main
-
-import (
-	"fmt"
-	"runtime"
-
-	"github.com/ivpusic/grpool"
-)
-
-func main() {
-	numCPUs := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPUs)
-
-	// number of workers, and size of job queue
-	pool := grpool.NewPool(10, 50)
-	defer pool.Release()
-
-	// how many jobs we should wait
-	pool.WaitCount(10)
-
-	job := grpool.Job{
-		// define function which will be called on worker
-		Fn: func(arg interface{}) {
-			// say that job is done, so we can know how many jobs are finished
-			defer pool.JobDone()
-
-			fmt.Printf("hello %s\n", arg)
-		},
-		// provide arguments
-		Arg: "world",
-		RecoverFn: func() {
-			fmt.Println("Custom panic catch.")
-		},
-	}
-
-	// submit one or more jobs to pool
-	for i := 0; i < 10; i++ {
-		pool.JobQueue <- job
-	}
-
-	// wait until we call JobDone for all jobs
-	pool.WaitAll()
+  // wait until we call JobDone for all jobs
+  pool.WaitAll()
 }
 ```
 
