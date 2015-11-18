@@ -29,9 +29,6 @@ import (
 )
 
 func main() {
-  numCPUs := runtime.NumCPU()
-  runtime.GOMAXPROCS(numCPUs)
-
   // number of workers, and size of job queue
   pool := grpool.NewPool(100, 50)
 
@@ -64,9 +61,6 @@ import (
 )
 
 func main() {
-  numCPUs := runtime.NumCPU()
-  runtime.GOMAXPROCS(numCPUs)
-
   // number of workers, and size of job queue
   pool := grpool.NewPool(100, 50)
   defer pool.Release()
