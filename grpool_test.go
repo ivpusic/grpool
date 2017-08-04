@@ -1,6 +1,8 @@
 package grpool
 
 import (
+	"io/ioutil"
+	"log"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -83,4 +85,19 @@ func TestRelease(t *testing.T) {
 	}
 
 	pool.WaitAll()
+}
+
+func BenchmarkPool(b *testing.B) {
+	// Testing with just 1 goroutine
+	// to benchmark the non-parallel part of the code
+	pool := NewPool(1, 10)
+	defer pool.Release()
+
+	log.SetOutput(ioutil.Discard)
+
+	for n := 0; n < b.N; n++ {
+		pool.JobQueue <- func() {
+			log.Printf("I am worker! Number %d\n", n)
+		}
+	}
 }

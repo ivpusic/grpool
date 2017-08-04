@@ -6,7 +6,7 @@ import "sync"
 type worker struct {
 	workerPool chan *worker
 	jobChannel chan Job
-	stop       chan bool
+	stop       chan struct{}
 }
 
 func (w *worker) start() {
@@ -19,11 +19,9 @@ func (w *worker) start() {
 			select {
 			case job = <-w.jobChannel:
 				job()
-			case stop := <-w.stop:
-				if stop {
-					w.stop <- true
-					return
-				}
+			case <-w.stop:
+				w.stop <- struct{}{}
+				return
 			}
 		}
 	}()
@@ -33,7 +31,7 @@ func newWorker(pool chan *worker) *worker {
 	return &worker{
 		workerPool: pool,
 		jobChannel: make(chan Job),
-		stop:       make(chan bool),
+		stop:       make(chan struct{}),
 	}
 }
 
@@ -41,7 +39,7 @@ func newWorker(pool chan *worker) *worker {
 type dispatcher struct {
 	workerPool chan *worker
 	jobQueue   chan Job
-	stop       chan bool
+	stop       chan struct{}
 }
 
 func (d *dispatcher) dispatch() {
@@ -50,18 +48,16 @@ func (d *dispatcher) dispatch() {
 		case job := <-d.jobQueue:
 			worker := <-d.workerPool
 			worker.jobChannel <- job
-		case stop := <-d.stop:
-			if stop {
-				for i := 0; i < cap(d.workerPool); i++ {
-					worker := <-d.workerPool
+		case <-d.stop:
+			for i := 0; i < cap(d.workerPool); i++ {
+				worker := <-d.workerPool
 
-					worker.stop <- true
-					<-worker.stop
-				}
-
-				d.stop <- true
-				return
+				worker.stop <- struct{}{}
+				<-worker.stop
 			}
+
+			d.stop <- struct{}{}
+			return
 		}
 	}
 }
@@ -70,7 +66,7 @@ func newDispatcher(workerPool chan *worker, jobQueue chan Job) *dispatcher {
 	d := &dispatcher{
 		workerPool: workerPool,
 		jobQueue:   jobQueue,
-		stop:       make(chan bool),
+		stop:       make(chan struct{}),
 	}
 
 	for i := 0; i < cap(d.workerPool); i++ {
@@ -129,6 +125,6 @@ func (p *Pool) WaitAll() {
 
 // Will release resources used by pool
 func (p *Pool) Release() {
-	p.dispatcher.stop <- true
+	p.dispatcher.stop <- struct{}{}
 	<-p.dispatcher.stop
 }
